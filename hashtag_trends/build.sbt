@@ -4,7 +4,7 @@ scalaVersion := "2.12.10"
 
 resolvers += "confluent" at "https://packages.confluent.io/maven/"
 
-javaSource in AvroConfig := baseDirectory.value / "src/main/scala/com/charter/generated"
+javaSource in AvroConfig := baseDirectory.value / "target"
 stringType in AvroConfig := "String"
 sourceDirectory in AvroConfig := baseDirectory.value / "src/main/resources/tweet.avsc"
 

@@ -6,7 +6,7 @@
   "version": "1",
   "fields": [
     { "name": "tweet", "type": "string", "doc": "Tweet with Hashtag" },
-    { "name": "hash_tags", "type": "map", "values": "string", "doc": "All hashtags" },
-    { "time": "time_stamp", "type": "string", "doc": "Time of the tweet" }
+    { "name": "hash_tags", "type": "string", "doc": "All hashtags" },
+    { "name": "time_stamp", "type": "string", "doc": "Time of the tweet" }
   ]
 }

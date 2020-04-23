@@ -13,13 +13,17 @@ import org.apache.kafka.streams.scala.kstream._
 import org.apache.kafka.streams.{KafkaStreams, StreamsConfig}
 import org.apache.log4j.Logger
 import Serdes._
+import com.charter.generated.Tweet
+import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+import org.apache.kafka.common.serialization.Serde
 
 object Trends {
 
   val log: Logger = CustomLogger.getLogger(this.getClass.getName)
 
   val session = CqlSession.builder().build()
-  //implicit val ser: Serde[Value] = new AvroSerDe
+
+  implicit val ser: Serde[Tweet] = new SpecificAvroSerde[Tweet]
 
   def main(args: Array[String]): Unit = {
 
@@ -36,15 +40,16 @@ object Trends {
     val input: KStream[String, String] = builder.stream[String, String]("tweets")
     val result = input.map{ case (tweet: String, tStamp: String) =>
       log.info(s"tweet -> $tweet, tStamp -> $tStamp")
+      val tInfo = new Tweet()
       rgx.findFirstIn(tweet) match {
         case bind @ Some(hashTag) =>
           log.info(s"HashTag -> " + hashTag)
-          //(tweet, Value(tStamp, hashTag))
-          (tweet, hashTag)
+          tInfo.setTweet(tweet)
+          (tweet, tInfo)
         case None =>
           log.warn("No HashTag")
-          //(tweet, Value(tStamp, ""))
-          (tweet, "")
+          tInfo.setTweet(tweet)
+          (tweet, tInfo)
       }
     }
     result.to("test")

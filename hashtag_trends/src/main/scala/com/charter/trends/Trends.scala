@@ -74,7 +74,6 @@ object Trends {
           cache.put(hashNtweet, "")
           true
       }
-      true
     }
     val grouped = filtered.groupBy{ case (hashNtstamp, _) =>
       hashNtstamp

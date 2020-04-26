@@ -63,6 +63,7 @@ object Trends {
   }
 
   /**
+   * All the stream processors are grouped here
    * @param input Stream from the source topic
    * @param session To write data into Cassandra table
    * @return Final stream (that will be written to output topic)

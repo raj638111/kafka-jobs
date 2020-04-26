@@ -24,7 +24,7 @@ object Trends {
   val cache: Cache[String, String] = Scaffeine()
     .recordStats()
     .expireAfterWrite(1.hour) // Cached data expires after this time
-    .maximumSize(5000) // Total amount of records allowed to cached
+    .maximumSize(2000) // Total amount of records allowed to cached
     .build[String, String]()
 
   // Cassandra Tables

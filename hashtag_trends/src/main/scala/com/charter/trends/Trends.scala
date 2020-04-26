@@ -2,8 +2,7 @@ package com.charter.trends
 
 import java.time.Duration
 import java.util.Properties
-import java.util.concurrent.{CountDownLatch, TimeUnit}
-
+import java.util.concurrent.TimeUnit
 import com.charter.log.CustomLogger
 import com.datastax.oss.driver.api.core.CqlSession
 import com.github.blemale.scaffeine.{Cache, Scaffeine}
@@ -15,11 +14,8 @@ import org.apache.kafka.streams.{KafkaStreams, StreamsConfig}
 import org.apache.log4j.Logger
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.streams.kstream.TimeWindows
-
 import scala.concurrent.duration._
-/**
- * Kafka stream using High Level DSL
- */
+
 object Trends {
 
   val log: Logger = CustomLogger.getLogger(this.getClass.getName)
@@ -69,7 +65,7 @@ object Trends {
       (s"${hashtag}|!|${tstamp}", s"${hashtag}|!|${tweet}")
     }
     val filtered = mapped.filter{ case (_, hashNtweet) =>
-      /*cache.getIfPresent(hashNtweet)match {
+      cache.getIfPresent(hashNtweet)match {
         case Some(_) =>
           log.warn("NOT Allowed. Already in cache -> " + hashNtweet)
           false
@@ -77,13 +73,13 @@ object Trends {
           log.info("Allowed. Adding to cache -> " + hashNtweet)
           cache.put(hashNtweet, "")
           true
-      }*/
+      }
       true
     }
     val grouped = filtered.groupBy{ case (hashNtstamp, _) =>
       hashNtstamp
     }
-    // Create 1 minute Tumble Window
+    // Create 5 minute Tumble Window
     val windowSizeMs = TimeUnit.MINUTES.toMillis(5);
     val windowedCount = grouped
       .windowedBy(TimeWindows.of(windowSizeMs))

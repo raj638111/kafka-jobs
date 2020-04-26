@@ -100,7 +100,7 @@ $PROJECT_HOME/hashtag_trends/target/scala-2.13/hashtag_trends-assembly-0.1.0-SNA
 From `$PROJECT_HOME/hashtag_trends` run,
 
 ```
-scala -classpath target/scala-2.13/hashtag_trends-assembly-0.1.0-SNAPSHOT.jar com.charter.trends.TrendsV2 --input tweets --output trends
+scala -classpath target/scala-2.13/hashtag_trends-assembly-0.1.0-SNAPSHOT.jar com.charter.trends.Trends --input tweets --output trends
 
 where 
 --input is input topic for the application

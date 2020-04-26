@@ -5,51 +5,42 @@ import java.util.Properties
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import com.charter.log.CustomLogger
+import com.datastax.oss.driver.api.core.CqlSession
+import com.github.blemale.scaffeine.{Cache, Scaffeine}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala._
-import org.apache.kafka.streams.scala.kstream._
+import org.apache.kafka.streams.scala.kstream.{KStream, _}
 import org.apache.kafka.streams.{KafkaStreams, StreamsConfig}
 import org.apache.log4j.Logger
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.streams.kstream.TimeWindows
 
+import scala.concurrent.duration._
 /**
  * Kafka stream using High Level DSL
  */
 object Trends {
 
   val log: Logger = CustomLogger.getLogger(this.getClass.getName)
+  val cache: Cache[String, String] = Scaffeine()
+    .recordStats()
+    .expireAfterWrite(1.hour)
+    .maximumSize(1000)
+    .build[String, String]()
+  val TABLE_TRENDS = "charter.trends"
+  val TABLE_TRENDS_TSTAMP = "charter.trends_tstamp"
+  val TABLE_TRENDS_HASHTAG = "charter.trends_bytag"
 
   def main(args: Array[String]): Unit = {
+    val session: CqlSession = CqlSession.builder().build()
     val param = Param().parse(args)
     import Serdes._
     val configs = prop()
     val builder = new StreamsBuilder
     val input: KStream[String, String] = builder.stream[String, String](param.input)
-    val rgx = "#[a-zA-Z0-9]+".r
-    val res = input.map{ case (tweet, tstamp) =>
-      log.info(s"tweet -> $tweet, tstamp -> $tstamp")
-      val hashtag = rgx.findFirstIn(tweet) match {
-        case bind@Some(hashTag) => hashTag
-        case None => ""
-      }
-      (hashtag, tstamp)
-    }
-    val res2 = res.groupBy{ case (hashtag, tstamp) =>
-      s"${hashtag}_${tstamp}"
-    }
-    //val res3 = res2.count()
-    // 1 minute window
-    val windowSizeMs = TimeUnit.MINUTES.toMillis(1);
-    val res4 = res2
-        .windowedBy(TimeWindows.of(windowSizeMs))
-        .count()
-    val res5 = res4.toStream
-    val res6 = res5.map{ case (key, value) =>
-      (key.key(), value)
-    }
-    res6.to(param.output)
+    val output = transform(input, session)
+    output.to(param.output)
     val streams: KafkaStreams = new KafkaStreams(builder.build(), configs)
     try {
       streams.start()
@@ -59,10 +50,80 @@ object Trends {
         System.exit(1)
     }
     sys.ShutdownHookThread {
-      log.info("end")
+      log.info("Closing cassandra session")
+      session.close()
+      log.info("Closing stream")
       streams.close(Duration.ofSeconds(20))
     }
     log.info("end1")
+  }
+
+  def transform(input: KStream[String, String], session: CqlSession) = {
+    import Serdes._
+    val mapped = input.map{ case (hashtag, tweetNtstamp) =>
+      log.info(s"hashtag -> $hashtag, tweetntstamp -> $tweetNtstamp")
+      val (tweet, tstamp) = tweetNtstamp.split("[|]{1}![|]{1}") match {
+        case x if x.size == 2 => (x(0).trim, x(1).trim)
+        case _ => throw new UnsupportedOperationException(s"$tweetNtstamp not splittable")
+      }
+      (s"${hashtag}|!|${tstamp}", s"${hashtag}|!|${tweet}")
+    }
+    val filtered = mapped.filter{ case (_, hashNtweet) =>
+      /*cache.getIfPresent(hashNtweet)match {
+        case Some(_) =>
+          log.warn("NOT Allowed. Already in cache -> " + hashNtweet)
+          false
+        case None =>
+          log.info("Allowed. Adding to cache -> " + hashNtweet)
+          cache.put(hashNtweet, "")
+          true
+      }*/
+      true
+    }
+    val grouped = filtered.groupBy{ case (hashNtstamp, _) =>
+      hashNtstamp
+    }
+    // Create 1 minute Tumble Window
+    val windowSizeMs = TimeUnit.MINUTES.toMillis(5);
+    val windowedCount = grouped
+      .windowedBy(TimeWindows.of(windowSizeMs))
+      .count()
+    val result = windowedCount.toStream.map{ case (key, value) =>
+      (key.key(), value)
+    }
+    val peeked = result.peek{ case (key, value) =>
+      val (hash, tstamp) = key.split("[|]{1}![|]{1}") match {
+        case x => (x(0), x(1))
+      }
+      insertToTrends(tstamp, value, hash, session)
+      insertToTrendsByTag(tstamp, value, hash, session)
+      insertToTstamp(tstamp, session)
+    }
+    peeked
+  }
+
+  def insertToTrends(tstamp: String, value: Long, hash: String, session: CqlSession) = {
+    val query = s"insert into ${TABLE_TRENDS}(tstamp, count, hashtag) " +
+      s"values('$tstamp', $value, '$hash')"
+    log.info("Executing query -> " + query)
+    session.execute(query)
+    log.info("Done executing query -> " + query)
+  }
+
+  def insertToTrendsByTag(tstamp: String, value: Long, hash: String, session: CqlSession) = {
+    val query = s"insert into ${TABLE_TRENDS_HASHTAG} (hashtag, tstamp, count) " +
+      s"values('$hash', '$tstamp', $value)"
+    log.info("Executing query -> " + query)
+    session.execute(query)
+    log.info("Done executing query -> " + query)
+  }
+
+  def insertToTstamp(tstamp: String, session: CqlSession): Unit = {
+    val query = s"insert into ${TABLE_TRENDS_TSTAMP}(dummy, tstamp) " +
+      s"values('-', '$tstamp')"
+    log.info("Executing query -> " + query)
+    session.execute(query)
+    log.info("Done executing query -> " + query)
   }
 
   def prop(): Properties = {
@@ -72,8 +133,6 @@ object Trends {
     p.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
     //p.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, "0")
     p.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1")
-    //p.put("num.stream.threads", "1")
-    //p.put("max.poll.records", "2")
     p
   }
 }

@@ -33,7 +33,7 @@ create table charter.tweets(
 
 ```
 drop table if exists charter.trends;
-create table trends(
+create table charter.trends(
   tstamp timestamp,
   hashtag text,
   count bigint,
@@ -42,7 +42,7 @@ create table trends(
 ```
 ```
 drop materialized view charter.trends_bycount;
-create materialized view trends_bycount as
+create materialized view charter.trends_bycount as
   select hashtag from charter.trends
   where tstamp is not null and count is not null
   and hashtag is not null
@@ -59,7 +59,7 @@ create table charter.trends_bytag(
   count bigint,
   primary key (hashtag, tstamp)
 ) with clustering order by (tstamp desc);
-select * from trends_bytag;
+select * from charter.trends_bytag;
 ```
 
 ```

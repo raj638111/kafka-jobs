@@ -40,7 +40,7 @@ object Trends {
     val session: CqlSession = CqlSession.builder().build()
     val param = Param().parse(args)
     import Serdes._
-    val configs = prop()
+    val configs = prop(param)
     val builder = new StreamsBuilder
     val input: KStream[String, String] = builder.stream[String, String](param.input)
     val output = transform(input, session)
@@ -139,12 +139,14 @@ object Trends {
    * Kafka specific properties
    * @return properties
    */
-  def prop(): Properties = {
+  def prop(param: Param): Properties = {
     val p = new Properties()
     p.put(StreamsConfig.APPLICATION_ID_CONFIG, "trend4")
     p.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
     p.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-    //p.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, "0")
+    if(param.devMode) {
+      p.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, "0")
+    }
     p.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1")
     p
   }
@@ -157,7 +159,8 @@ object Trends {
  */
 case class Param(
   input: String = null,
-  output: String = null){
+  output: String = null,
+  devMode: Boolean = true){
 
   val log: Logger = CustomLogger.getLogger(this.getClass.getName.dropRight(1))
 
@@ -169,6 +172,9 @@ case class Param(
       }
       opt[String]("output").required().action { (x, c) =>
         c.copy(output = x)
+      }
+      opt[Boolean]("devMode").required().action { (x, c) =>
+        c.copy(devMode = x)
       }
     }
     parser.parse(args, Param()) match {

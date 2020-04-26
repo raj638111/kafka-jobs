@@ -3,6 +3,13 @@
 
 This project contains the KSTream that computes Hashtag trend count for tweets & stores the result in Kafka topic as well as in Cassandra table
 
+# Prerequisites: Install Kafka & Cassandra
+
+Ensure both Kafka & Cassandra are installed with
+1. `Kafka` Bootstrap server available on Port 9092 (Default)
+2. `Cassandra` server available on port 9042 (Port)  
+
+
 # Prerequisites: DDL (Cassandra)
 
 ### **Create KeySpace**
@@ -74,6 +81,7 @@ kafka-topics.sh --zookeeper 127.0.0.1:2181 --create --partitions 3 \
 kafka-topics.sh --zookeeper 127.0.0.1:2181 --create --partitions 3 \
 --replication-factor 1 --topic trends
 ```
+
 In case if needed to delete the topics, use the following command,
 
 ```

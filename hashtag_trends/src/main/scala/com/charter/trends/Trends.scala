@@ -19,15 +19,23 @@ import scala.concurrent.duration._
 object Trends {
 
   val log: Logger = CustomLogger.getLogger(this.getClass.getName)
+
+  // Caffeine cached: Used to filter out duplicate tweets
   val cache: Cache[String, String] = Scaffeine()
     .recordStats()
     .expireAfterWrite(1.hour)
     .maximumSize(1000)
     .build[String, String]()
+
+  // Cassandra Tables
   val TABLE_TRENDS = "charter.trends"
   val TABLE_TRENDS_TSTAMP = "charter.trends_tstamp"
   val TABLE_TRENDS_HASHTAG = "charter.trends_bytag"
 
+  /**
+   * Yep. Application starts here...
+   * @param args Command line arguments
+   */
   def main(args: Array[String]): Unit = {
     val session: CqlSession = CqlSession.builder().build()
     val param = Param().parse(args)
@@ -54,6 +62,11 @@ object Trends {
     log.info("end1")
   }
 
+  /**
+   * @param input Stream from the source topic
+   * @param session To write data into Cassandra table
+   * @return Final stream (that will be written to output topic)
+   */
   def transform(input: KStream[String, String], session: CqlSession) = {
     import Serdes._
     val mapped = input.map{ case (hashtag, tweetNtstamp) =>
@@ -132,6 +145,11 @@ object Trends {
   }
 }
 
+/**
+ * Command line arguments are stored here
+ * @param input Input topic
+ * @param output Output topic
+ */
 case class Param(
   input: String = null,
   output: String = null){

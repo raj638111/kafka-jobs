@@ -135,6 +135,10 @@ object Trends {
     log.info("Done executing query -> " + query)
   }
 
+  /**
+   * Kafka specific properties
+   * @return properties
+   */
   def prop(): Properties = {
     val p = new Properties()
     p.put(StreamsConfig.APPLICATION_ID_CONFIG, "trend4")

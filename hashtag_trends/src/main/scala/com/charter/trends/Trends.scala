@@ -20,7 +20,7 @@ object Trends {
 
   val log: Logger = CustomLogger.getLogger(this.getClass.getName)
 
-  // Caffeine cached: Used to filter out duplicate tweets
+  // Caffeine cache: Used to filter out duplicate tweets
   val cache: Cache[String, String] = Scaffeine()
     .recordStats()
     .expireAfterWrite(1.hour) // Cached data expires after this time

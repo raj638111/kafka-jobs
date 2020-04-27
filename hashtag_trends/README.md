@@ -148,6 +148,7 @@ SELECT view_name FROM system_schema.views;
 # Code Structure
 
 ```
+hashtag_trends
 .
 ├── README.md
 ├── artifacts

@@ -144,3 +144,27 @@ use charter;
 desc tables; 
 SELECT view_name FROM system_schema.views;
 ```
+
+# Code Structure
+
+```
+.
+├── README.md
+├── artifacts
+│   └── tweet_ec2.jmx
+├── build.sbt
+├── project
+│   ├── build.properties
+│   ├── plugins.sbt
+├── src
+│   └── main
+│       ├── resources
+│       │   ├── application.conf
+│       └── scala
+│           └── com
+│               └── charter
+│                   ├── log
+│                   │   └── CustomLogger.scala
+│                   └── trends
+│                       └── Trends.scala
+```
